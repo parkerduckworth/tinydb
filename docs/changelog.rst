@@ -10,7 +10,68 @@ see `semver.org <http://semver.org/>`_
 unreleased
 ^^^^^^^^^^
 
-*Nothing yet*
+- *Nothing yet*
+
+v3.12.2 (2018-12-12)
+^^^^^^^^^^^^^^^^^^^^
+
+- Internal change: convert documents to dicts during insertion
+  (see `pull request 256 <https://github.com/msiemens/tinydb/pull/256>`_)
+- Internal change: use tuple literals instead of tuple class/constructor
+  (see `pull request 247 <https://github.com/msiemens/tinydb/pull/247>`_)
+- Infra: ensure YAML tests are run
+  (see `pull request 252 <https://github.com/msiemens/tinydb/pull/252>`_)
+
+v3.12.1 (2018-11-09)
+^^^^^^^^^^^^^^^^^^^^
+
+- Fix: Don't break when searching the same query multiple times
+  (see `pull request 249 <https://github.com/msiemens/tinydb/pull/249>`_)
+- Internal change: allow ``collections.abc.Mutable`` as valid document types
+  (see `pull request 245 <https://github.com/msiemens/tinydb/pull/245>`_)
+
+v3.12.0 (2018-11-06)
+^^^^^^^^^^^^^^^^^^^^
+
+- Feature: Add encoding option to ``JSONStorage``
+  (see `pull request 238 <https://github.com/msiemens/tinydb/pull/238>`_)
+- Internal change: allow ``collections.abc.Mutable`` as valid document types
+  (see `pull request 245 <https://github.com/msiemens/tinydb/pull/245>`_)
+
+v3.11.1 (2018-09-13)
+^^^^^^^^^^^^^^^^^^^^
+
+- Bugfix: Make path queries (``db.search(where('key))``) work again
+  (see `issue 232 <https://github.com/msiemens/tinydb/issues/232>`_)
+- Improvement: Add custom ``repr`` representations for main classes
+  (see `pull request 229 <https://github.com/msiemens/tinydb/pull/229>`_)
+
+v3.11.0 (2018-08-20)
+^^^^^^^^^^^^^^^^^^^^
+
+- **Drop official support for Python 3.3**. Python 3.3 has reached its
+  official End Of Life as of September 29, 2017. It will probably continue
+  to work, but will not be tested against
+  (`issue 217 <https://github.com/msiemens/tinydb/issues/217>`_)
+
+- Feature: Allow extending TinyDB with a custom storage proxy class
+  (see `pull request 224 <https://github.com/msiemens/tinydb/pull/224>`_)
+- Bugfix: Return list of document IDs for upsert when creating a new
+  document (see `issue 223 <https://github.com/msiemens/tinydb/issues/223>`_)
+
+v3.10.0 (2018-07-21)
+^^^^^^^^^^^^^^^^^^^^
+
+- Feature: Add support for regex flags
+  (see `pull request 216 <https://github.com/msiemens/tinydb/pull/216>`_)
+
+v3.9.0 (2018-04-24)
+^^^^^^^^^^^^^^^^^^^
+
+- Feature: Allow setting a table class for single table only
+  (see `issue 197 <https://github.com/msiemens/tinydb/issues/197>`_)
+- Internal change: call fsync after flushing ``JSONStorage``
+  (see `issue 208 <https://github.com/msiemens/tinydb/issues/208>`_)
 
 v3.8.1 (2018-03-26)
 ^^^^^^^^^^^^^^^^^^^

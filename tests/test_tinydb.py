@@ -1,5 +1,6 @@
 # coding=utf-8
 import sys
+import re
 
 import pytest
 
@@ -89,6 +90,70 @@ def test_insert_multiple_with_ids(db):
     assert db.insert_multiple([{'int': 1, 'char': 'a'},
                                {'int': 1, 'char': 'b'},
                                {'int': 1, 'char': 'c'}]) == [1, 2, 3]
+
+
+def test_insert_invalid_type_raises_error(db):
+    with pytest.raises(ValueError, message='Document is not a Mapping'):
+        db.insert(object())  # object() as an example of a non-mapping-type
+
+
+def test_insert_valid_mapping_type(db):
+    from tinydb.database import Mapping
+
+    class CustomDocument(Mapping):
+        def __init__(self, data):
+            self.data = data
+
+        def __getitem__(self, key):
+            return self.data[key]
+
+        def __iter__(self):
+            return iter(self.data)
+
+        def __len__(self):
+            return len(self.data)
+
+    db.purge()
+    db.insert(CustomDocument({'int': 1, 'char': 'a'}))
+    assert db.count(where('int') == 1) == 1
+
+
+def test_cutom_mapping_type_with_json(tmpdir):
+    from tinydb.database import Mapping
+
+    class CustomDocument(Mapping):
+        def __init__(self, data):
+            self.data = data
+
+        def __getitem__(self, key):
+            return self.data[key]
+
+        def __iter__(self):
+            return iter(self.data)
+
+        def __len__(self):
+            return len(self.data)
+
+    # Insert
+    db = TinyDB(str(tmpdir.join('test.db')))
+    db.purge()
+    db.insert(CustomDocument({'int': 1, 'char': 'a'}))
+    assert db.count(where('int') == 1) == 1
+
+    # Insert multiple
+    db.insert_multiple([
+        CustomDocument({'int': 2, 'char': 'a'}),
+        CustomDocument({'int': 3, 'char': 'a'})
+    ])
+    assert db.count(where('int') == 1) == 1
+    assert db.count(where('int') == 2) == 1
+    assert db.count(where('int') == 3) == 1
+
+    # Write back
+    doc_id = db.get(where('int') == 3).doc_id
+    db.write_back([CustomDocument({'int': 4, 'char': 'a'})], [doc_id])
+    assert db.count(where('int') == 3) == 0
+    assert db.count(where('int') == 4) == 1
 
 
 def test_remove(db):
@@ -198,7 +263,10 @@ def test_write_back_returns_ids(db):
     db.purge()
     assert db.insert({'int': 1, 'char': 'a'}) == 1
     assert db.insert({'int': 1, 'char': 'a'}) == 2
-    assert db.write_back([{'word': 'hello'}, {'word': 'world'}], [1, 2]) == [1, 2]
+
+    docs = [{'word': 'hello'}, {'word': 'world'}]
+
+    assert db.write_back(docs, [1, 2]) == [1, 2]
 
 
 def test_write_back_fails(db):
@@ -225,7 +293,7 @@ def test_upsert(db):
     assert db.count(where('int') == 5) == 1
 
     # Document missing
-    db.upsert({'int': 9, 'char': 'x'}, where('char') == 'x')
+    assert db.upsert({'int': 9, 'char': 'x'}, where('char') == 'x') == [4]
     assert db.count(where('int') == 9) == 1
 
 
@@ -235,6 +303,20 @@ def test_search(db):
 
     assert len(db._query_cache) == 1
     assert len(db.search(where('int') == 1)) == 3  # Query result from cache
+
+
+def test_search_path(db):
+    assert not db._query_cache
+    assert len(db.search(where('int'))) == 3
+    assert len(db._query_cache) == 1
+
+    assert len(db.search(where('asd'))) == 0
+    assert len(db.search(where('int'))) == 3  # Query result from cache
+
+
+def test_search_no_results_cache(db):
+    assert len(db.search(where('missing'))) == 0
+    assert len(db.search(where('missing'))) == 0
 
 
 def test_get(db):
@@ -580,3 +662,126 @@ def test_eids(db):
 
     with pytest.raises(TypeError):
         db.get(eid=[1], doc_id=[1])
+
+
+def test_custom_table_class():
+    from tinydb.database import Table
+
+    class MyTableClass(Table):
+        pass
+
+    # Table class for single table
+    db = TinyDB(storage=MemoryStorage)
+    assert isinstance(TinyDB(storage=MemoryStorage).table(),
+                      Table)
+    assert isinstance(db.table('my_table', table_class=MyTableClass),
+                      MyTableClass)
+
+    # Table class for all tables
+    TinyDB.table_class = MyTableClass
+    assert isinstance(TinyDB(storage=MemoryStorage).table(),
+                      MyTableClass)
+    assert isinstance(TinyDB(storage=MemoryStorage).table('my_table'),
+                      MyTableClass)
+
+    # Reset default table class
+    TinyDB.table_class = Table
+
+
+def test_string_key():
+    from tinydb.database import Table, StorageProxy, Document
+    from tinydb.storages import MemoryStorage
+
+    class StorageProxy2(StorageProxy):
+        def _new_document(self, key, val):
+            # Don't convert the key to a number here!
+            return Document(val, key)
+
+    class Table2(Table):
+        def _init_last_id(self, data):
+            if data:
+                self._last_id = len(data)
+            else:
+                self._last_id = 0
+
+        def _get_next_id(self):
+            next_id = self._last_id + 1
+            data = self._read()
+            while str(next_id) in data:
+                next_id += 1
+            self._last_id = next_id
+            return str(next_id)
+
+        def _get_doc_id(self, document):
+            if not isinstance(document, dict):
+                raise ValueError('Document is not a dictionary')
+            return document.get('doc_id') or self._get_next_id()
+
+    db = TinyDB(storage=MemoryStorage, table_class=Table2,
+                storage_proxy_class=StorageProxy2)
+    table = db.table()
+    table.insert({'doc_id': 'abc'})
+    assert table.get(doc_id='abc')['doc_id'] == 'abc'
+    assert table._last_id == 0
+    table.insert({'abc': 10})
+    assert table.get(doc_id='1')['abc'] == 10
+    assert table._last_id == 1
+
+
+def test_string_key2():
+    from tinydb.database import Table, StorageProxy, Document
+    from tinydb.storages import MemoryStorage
+
+    class StorageProxy2(StorageProxy):
+        def _new_document(self, key, val):
+            # Don't convert the key to a number here!
+            return Document(val, key)
+
+    class Table2(Table):
+        def _init_last_id(self, data):
+            if data:
+                self._last_id = len(data)
+            else:
+                self._last_id = 0
+
+        def _get_next_id(self):
+            next_id = self._last_id + 1
+            data = self._read()
+            while str(next_id) in data:
+                next_id += 1
+            self._last_id = next_id
+            return str(next_id)
+
+        def _get_doc_id(self, document):
+            if not isinstance(document, dict):
+                raise ValueError('Document is not a dictionary')
+            return document.get('doc_id') or self._get_next_id()
+
+    TinyDB.storage_proxy_class = StorageProxy2
+    db = TinyDB(storage=MemoryStorage, table_class=Table2)
+    table = db.table()
+    table.insert({'doc_id': 'abc'})
+    assert table.get(doc_id='abc')['doc_id'] == 'abc'
+    assert table._last_id == 0
+    table.insert({'abc': 10})
+    assert table.get(doc_id='1')['abc'] == 10
+    assert table._last_id == 1
+
+
+def test_repr(tmpdir):
+    path = str(tmpdir.join('db.json'))
+
+    assert re.match(
+        r"<TinyDB "
+        r"tables=\[u?\'_default\'\], "
+        r"tables_count=1, "
+        r"default_table_documents_count=0, "
+        r"all_tables_documents_count=\[\'_default=0\'\]>",
+        repr(TinyDB(path)))
+
+
+def test_insert_multiple_with_single_dict(db):
+    with pytest.raises(ValueError):
+        d = {'first': 'John', 'last': 'smith'}
+        db.insert_multiple(d)
+        db.close()

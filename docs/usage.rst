@@ -87,6 +87,9 @@ queries:
 >>> # Regex:
 >>> # Full item has to match the regex:
 >>> db.search(User.name.matches('[aZ]*'))
+>>> # Case insensitive search for 'John':
+>>> import re
+>>> db.search(User.name.matches('John', flags=re.IGNORECASE))
 >>> # Any part of the item has to match the regex:
 >>> db.search(User.name.search('b+'))
 
@@ -164,7 +167,7 @@ TinyDB also allows you to use logical operations to modify and combine
 queries:
 
 >>> # Negate a query:
->>> db.search(~ User.name == 'John')
+>>> db.search(~ (User.name == 'John'))
 
 >>> # Logical AND:
 >>> db.search((User.name == 'John') & (User.age <= 30))
@@ -176,6 +179,17 @@ queries:
 
     When using ``&`` or ``|``, make sure you wrap the conditions on both sides
     with parentheses or Python will mess up the comparison.
+
+    Also, when using negation (``~``) you'll have to wrap the query you want
+    to negate in parentheses.
+
+    The reason for these requirements is that Python's binary operators that are
+    used for query modifiers have a higher operator precedence than comparison
+    operators. Simply put, ``~ User.name == 'John'`` is parsed by Python as
+    ``(~User.name) == 'John'`` instead of ``~(User.name == 'John')``. See also the
+    Python `docs on operator precedence
+    <https://docs.python.org/3/reference/expressions.html#operator-precedence>`_
+    for details.
 
 Recap
 .....
@@ -211,7 +225,7 @@ Let's review the query operations we've learned:
 +-------------------------------------+-------------------------------------------------------------+
 | **Logical operations on queries**                                                                 |
 +-------------------------------------+-------------------------------------------------------------+
-| ``~ query``                         | Match documents that don't match the query                  |
+| ``~ (query)``                       | Match documents that don't match the query                  |
 +-------------------------------------+-------------------------------------------------------------+
 | ``(query1) & (query2)``             | Match documents that match both queries                     |
 +-------------------------------------+-------------------------------------------------------------+
@@ -297,6 +311,10 @@ can get the number of stored documents:
 
 >>> len(db)
 3
+
+.. hint::
+    This will return the number of documents in the default table
+    (see the notes on the :ref:`default table <default_table>`).
 
 Then of course you can use ``db.search(...)`` as described in the :doc:`getting-started`
 section. But sometimes you want to get only one matching document. Instead of using
@@ -523,7 +541,10 @@ To use the in-memory storage, use:
     underlying storage. For the JSON storage you can use this to pass
     additional keyword arguments to Python's
     `json.dump(...) <https://docs.python.org/2/library/json.html#json.dump>`_
-    method.
+    method. For example, you can set it to create prettified JSON files like
+    this:
+
+    >>> db = TinyDB('db.json', sort_keys=True, indent=4, separators=(',', ': '))
 
 To modify the default storage for all ``TinyDB`` instances, set the
 ``DEFAULT_STORAGE`` class variable:
@@ -541,7 +562,6 @@ behaviour.
 >>> db = TinyDB('/path/to/db.json', storage=CachingMiddleware(JSONStorage))
 
 .. hint::
-
     You can nest middleware:
 
     >>> db = TinyDB('/path/to/db.json',

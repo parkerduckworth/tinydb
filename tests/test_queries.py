@@ -1,10 +1,38 @@
 import pytest
-from tinydb.queries import Query
+import re
+from tinydb.queries import Query, where
 
 
 def test_no_path():
     with pytest.raises(ValueError):
-        Query() == 2
+        _ = Query() == 2
+
+
+def test_path_only():
+    query = Query()['value']
+    assert query == where('value')
+    assert query({'value': 1})
+    assert not query({'something': 1})
+    assert hash(query)
+    assert hash(query) != hash(where('asd'))
+
+    query = Query()['value']['val']
+    assert query == where('value')['val']
+    assert query({'value': {'val': 2}})
+    assert not query({'value': 1})
+    assert not query({'value': {'asd': 1}})
+    assert not query({'something': 1})
+    assert hash(query)
+    assert hash(query) != hash(where('asd'))
+
+
+def test_path_and():
+    query = Query()['value'] & (Query()['value'] == 5)
+    assert query({'value': 5})
+    assert not query({'value': 10})
+    assert not query({'something': 1})
+    assert hash(query)
+    assert hash(query) != hash(where('value'))
 
 
 def test_eq():
@@ -127,6 +155,13 @@ def test_regex():
     assert query({'val': 'ab3'})
     assert not query({'val': 'abc'})
     assert not query({'val': ''})
+    assert not query({'': None})
+    assert hash(query)
+
+    query = Query().val.search(r'JOHN', flags=re.IGNORECASE)
+    assert query({'val': 'john'})
+    assert query({'val': 'xJohNx'})
+    assert not query({'val': 'JOH'})
     assert not query({'': None})
     assert hash(query)
 
@@ -321,3 +356,10 @@ def test_orm_usage():
     query2 = User.age.year == 2000
     assert query1(data)
     assert query2(data)
+
+
+def test_repr():
+    Fruit = Query()
+
+    assert repr(Fruit) == "Query()"
+    assert repr(Fruit.type == 'peach') == "QueryImpl('==', ('type',), 'peach')"

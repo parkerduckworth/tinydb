@@ -8,6 +8,7 @@ def read(fname):
     path = os.path.join(os.path.dirname(__file__), fname)
     return open(path, encoding='utf-8').read()
 
+
 # This will set the version string to __version__
 exec(read('tinydb/version.py'))
 
@@ -27,6 +28,12 @@ setup(
     license="MIT",
     keywords="database nosql",
     url="https://github.com/msiemens/tinydb",
+    project_urls={
+        'Documentation': 'http://tinydb.readthedocs.org/',
+        'Changelog': 'https://tinydb.readthedocs.io/en/latest/changelog.html',
+        'Extensions': 'https://tinydb.readthedocs.io/en/latest/extensions.html',
+        'Issues': 'https://github.com/msiemens/tinydb/issues',
+    },
     classifiers=[
         "Development Status :: 5 - Production/Stable",
         "Intended Audience :: Developers",
@@ -46,9 +53,8 @@ setup(
         "Programming Language :: Python :: Implementation :: PyPy",
         "Operating System :: OS Independent"
     ],
-    tests_require=['pytest-cov'],
+    tests_require=['pytest-cov', 'pyyaml'],
     setup_requires=['pytest-runner'],
 
     long_description=read('README.rst'),
-    data_files = [('', ['LICENSE'])]
 )
